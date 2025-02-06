@@ -3,7 +3,8 @@ import os
 import pandas as pd
 
 # Read the data path from secrets.toml
-DATA_PATH = st.secrets["paths"]["DATA_PATH"]
+# DATA_PATH = st.secrets["paths"]["DATA_PATH"]
+DATA_PATH = "/home/ralcaraz/Nextcloud/EMCROTUR"
 
 
 # Load the dataset
