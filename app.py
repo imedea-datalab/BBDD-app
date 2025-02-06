@@ -1,24 +1,40 @@
 import streamlit as st
 import os
+import requests
 import pandas as pd
 
 # Read the data path from secrets.toml
-# DATA_PATH = st.secrets["paths"]["DATA_PATH"]
-DATA_PATH = "/home/ralcaraz/Nextcloud/EMCROTUR"
+# Read API details from Streamlit secrets
+BASE_URL = st.secrets["api"]["BASE_URL"]
+API_TOKEN = st.secrets["api"]["API_TOKEN"]
 
 
-# Load the dataset
+# Fetch CSV from the API and return as DataFrame
+def fetch_csv_from_api(year):
+    file_name = f"comex_taric_{year}.csv"
+    url = f"{BASE_URL}/{file_name}"
+    headers = {"Authorization": f"Bearer {API_TOKEN}"}
+
+    # Fetch the CSV file
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        local_file = f"/tmp/{file_name}"
+        with open(local_file, "wb") as f:
+            f.write(response.content)
+        return pd.read_csv(local_file)
+    else:
+        st.error(f"Failed to fetch {file_name}: {response.status_code}")
+        return pd.DataFrame()  # Return an empty DataFrame in case of failure
+
+
+# Load data from multiple years
 def load_data():
-    data = []
-    for year in range(1995, 2024):
-        file_path = os.path.join(
-            DATA_PATH, f"DataComex_output_with_metadata/comex_taric_{year}.csv"
-        )
-        data.append(pd.read_csv(file_path))
+    data = [fetch_csv_from_api(year) for year in range(1995, 2024)]
     return pd.concat(data)
 
 
 data = load_data()
+
 
 # Streamlit App
 st.title("Filtered Data Downloader")
