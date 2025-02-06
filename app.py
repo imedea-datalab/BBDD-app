@@ -4,9 +4,13 @@ import requests
 import pandas as pd
 
 # Read the data path from secrets.toml
+# Accessing secrets
+# BASE_URL = st.secrets["api"]["BASE_URL"]
+# API_TOKEN = st.secrets["api"]["API_TOKEN"]
+
 # Read API details from Streamlit secrets
-BASE_URL = st.secrets.api.BASE_URL
-API_TOKEN = st.secrets.api.API_TOKEN
+BASE_URL = os.environ.get("BASE_URL")
+API_TOKEN = os.environ.get("API_TOKEN")
 
 
 # Fetch CSV from the API and return as DataFrame
