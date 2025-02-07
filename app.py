@@ -12,7 +12,7 @@ import pandas as pd
 # BASE_URL = os.environ.get("BASE_URL")
 # API_TOKEN = os.environ.get("API_TOKEN")
 
-BASE_URL = "http://127.0.0.1:5000/data"
+BASE_URL = "https://hd.imedea.uib-csic.es/data"
 API_TOKEN = "your_secret_token"
 
 
