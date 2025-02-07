@@ -4,7 +4,7 @@ import os
 app = Flask(__name__)
 
 # Path to the folder containing the data
-DATA_FOLDER = "/home/alana/ALANA/AI/EMCROTUR/DataComex_output_with_metadata"
+DATA_FOLDER = "/home/alana/ALANA/AI/EMCROTUR/EMCROTUR/DataComex_output_with_metadata/"
 
 # API Token for authentication
 API_TOKEN = "your_secret_token"
