@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import json
 import requests
 import pandas as pd
 
@@ -12,8 +13,8 @@ import pandas as pd
 # BASE_URL = os.environ.get("BASE_URL")
 # API_TOKEN = os.environ.get("API_TOKEN")
 
-BASE_URL = "https://hd.imedea.uib-csic.es/data"
-API_TOKEN = "your_secret_token"
+BASE_URL = st.secrets["api"]["BASE_URL"]
+API_TOKEN = st.secrets["api"]["API_TOKEN"]
 
 
 # Fetch CSV from the API and return as DataFrame
@@ -34,63 +35,67 @@ def fetch_csv_from_api(year):
         return pd.DataFrame()  # Return an empty DataFrame in case of failure
 
 
+# Read options.json
+with open("options.json") as f:
+    options = json.load(f)
+
+
 # Load data from multiple years
-def load_data():
-    data = [fetch_csv_from_api(year) for year in range(1995, 2024)]
+def load_data(años_filter=None):
+    data = []
+    for año in años_filter:
+        data.append(fetch_csv_from_api(año))
+
     return pd.concat(data)
-
-
-data = load_data()
 
 
 # Streamlit App
 st.title("Filtered Data Downloader")
 st.markdown("Use the filters below to refine the data and download it as a CSV file.")
 
+
 # Filters
 st.sidebar.header("Filters")
-flujo_filter = st.sidebar.multiselect(
-    "Select Flujo:", options=data["flujo"].unique(), default=data["flujo"].unique()
+flujos_filter = st.sidebar.multiselect(
+    "Select Flujo:",
+    options=options["flujo"],
+    default=options["flujo"][0],
 )
-año_filter = st.sidebar.multiselect(
-    "Select Año:", options=data["año"].unique(), default=data["año"].unique()[-1]
+años_filter = st.sidebar.multiselect(
+    "Select Año:", options=options["año"], default=options["año"][-1]
 )
-pais_filter = st.sidebar.multiselect(
+paises_filter = st.sidebar.multiselect(
     "Select País:",
-    options=data["pais_nombre"].unique(),
-    default=data["pais_nombre"].unique()[0],
-)
-provincia_filter = st.sidebar.multiselect(
-    "Select Provincia:",
-    options=data["provincia_nombre"].unique(),
-    default=data["provincia_nombre"].unique(),
+    options=options["pais_nombre"],
+    default=options["pais_nombre"][0],
 )
 
-# Apply filters
-filtered_data = data[
-    (data["flujo"].isin(flujo_filter))
-    & (data["año"].isin(año_filter))
-    & (data["pais_nombre"].isin(pais_filter))
-    & (data["provincia_nombre"].isin(provincia_filter))
-]
 
 # Data preview
 st.subheader("Filtered Data Preview")
-st.write(f"Displaying {len(filtered_data)} rows of data")
-st.dataframe(filtered_data)
+# st.write(f"Displaying {len(data)} rows of data")
 
-# Download button
-st.subheader("Download Filtered Data")
+# Put a button to apply the filters
+if st.sidebar.button("Apply Filters"):
+    data = load_data(años_filter)
+    # Apply filters
+    filtered_data = data[
+        (data["flujo"].isin(flujos_filter)) & (data["pais_nombre"].isin(paises_filter))
+    ]
+    st.write(f"Displaying {len(filtered_data)} rows of data")
+    st.dataframe(filtered_data)
+    st.sidebar.success("Filters Applied!")
 
+    # Download button
+    st.subheader("Download Filtered Data")
 
-def convert_df_to_csv(df):
-    return df.to_csv(index=False).encode("utf-8")
+    def convert_df_to_csv(df):
+        return df.to_csv(index=False).encode("utf-8")
 
-
-csv_data = convert_df_to_csv(filtered_data)
-st.download_button(
-    label="Download CSV",
-    data=csv_data,
-    file_name="filtered_data.csv",
-    mime="text/csv",
-)
+    csv_data = convert_df_to_csv(filtered_data)
+    st.download_button(
+        label="Download CSV",
+        data=csv_data,
+        file_name="filtered_data.csv",
+        mime="text/csv",
+    )
