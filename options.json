@@ -56,5 +56,5 @@
  "Micronesia Estados Federados", "Isla Navidad",
  "Georgia del Sur e Islas Sandwich Sur"], 
     "flujo": ["I", "E"],
-    "folders": ["data1", "data2"]
+    "folders": ["data_COMEX1995", "data_COMEX2010", "data_DACI"]
 }
