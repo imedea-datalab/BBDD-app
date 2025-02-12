@@ -55,5 +55,6 @@
  "Cisjordania/Franja de Gaza", "Pitcairn", "Tonga", "San Pedro y Miquelón",
  "Micronesia Estados Federados", "Isla Navidad",
  "Georgia del Sur e Islas Sandwich Sur"], 
-    "flujo": ["I", "E"]
+    "flujo": ["I", "E"],
+    "folders": ["data1", "data2"]
 }
