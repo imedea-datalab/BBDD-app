@@ -28,7 +28,7 @@ def register_routes(app):
             abort(404, description=f"File '{filename}' not found.")
 
     # List available CSV files (including those in subfolders)
-    @app.route("/files", methods=["GET"])
+    @app.route("/data/files", methods=["GET"])
     def list_files():
         csv_files = []
         # Walk through DATA_FOLDER recursively

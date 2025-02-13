@@ -19,7 +19,7 @@ def fetch_csv_from_api(database, year):
     # Adjust the BASE_URL for the listing endpoint if BASE_URL includes '/data'
     # This splits off the '/data' part if present.
     base_root = BASE_URL.rsplit("/data", 1)[0]
-    list_url = f"{base_root}/files"
+    list_url = f"{base_root}/data/files"
 
     response = requests.get(list_url, headers=headers)
     if response.status_code != 200:
