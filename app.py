@@ -1,121 +1,183 @@
 # app.py
 import streamlit as st
-import json
-import requests
 import pandas as pd
-from io import StringIO
+import json
 
-BASE_URL = st.secrets["api"]["BASE_URL"].rstrip('/')
-API_TOKEN = st.secrets["api"]["API_TOKEN"]
+# Supongamos que aquí tienes tu cliente que se encarga de descargar y procesar los CSV
+from client.data_processing import fetch_csv_from_api
 
+# 1. Cargar opciones
 with open("options.json") as f:
     options = json.load(f)
 
-st.title("Data Merger and Downloader")
-
-folder_options = ["All"] + options.get("folders", [])
-selected_folder = st.selectbox("Select Data Source:", folder_options)
-
-st.sidebar.header("Filters")
-flujos_filter = st.sidebar.multiselect("Select Flujo:", options["flujo"], default=options["flujo"][0])
-años_filter = st.sidebar.multiselect("Select Año:", options["año"], default=options["año"][-1])
-paises_filter = st.sidebar.multiselect("Select País:", options["pais_nombre"], default=options["pais_nombre"][0])
-
-def load_and_filter_data(folder, file_url):
-    """Load data and apply filters only for existing columns"""
-    response = requests.get(
-        file_url,
-        headers={"Authorization": f"Bearer {API_TOKEN}"}
+# 2. Título y descripción
+st.title("Aplicación de Datos con Múltiples Bases")
+st.markdown(
+    "Puedes añadir varias bases de datos y aplicar filtros distintos a cada una."
+)
+# 3. Manejo de session_state para almacenar la configuración de cada base de datos
+if "database_entries" not in st.session_state:
+    # Cada elemento de esta lista representará un conjunto de filtros para una base de datos
+    st.session_state["database_entries"] = []
+    st.session_state["database_entries"].append(
+        {
+            "id": len(st.session_state["database_entries"]),  # identificador interno
+            "database": None,
+            "flujos_filter": [],
+            "años_filter": [],
+            "paises_filter": [],
+        }
     )
-    if response.status_code == 200:
-        df = pd.read_csv(StringIO(response.text))
-        df['source_folder'] = folder
-        
-        # Apply filters only for columns that exist
-        mask = pd.Series(True, index=df.index)
-        if "flujo" in df.columns:
-            mask &= df["flujo"].isin(flujos_filter)
-        if "año" in df.columns:
-            mask &= df["año"].isin(años_filter)
-        if "pais_nombre" in df.columns:
-            mask &= df["pais_nombre"].isin(paises_filter)
-            
-        return df[mask]
-    return None
 
-if st.sidebar.button("Apply Filters"):
-    folders_to_process = options["folders"] if selected_folder == "All" else [selected_folder]
-    all_dataframes = []
-    
-    # First load all dataframes
-    for folder in folders_to_process:
-        try:
-            url = f"{BASE_URL}/data/{folder}/files"
-            response = requests.get(
-                url,
-                headers={"Authorization": f"Bearer {API_TOKEN}"}
-            )
-            
-            if response.status_code == 200 and "files" in response.json():
-                files = response.json()["files"]
-                
-                for file in files:
-                    file_url = f"{BASE_URL}/data/{folder}/{file}"
-                    df = load_and_filter_data(folder, file_url)
-                    if df is not None and not df.empty:
-                        all_dataframes.append({
-                            'data': df,
-                            'source': folder,
-                            'file': file
-                        })
-                        
-        except Exception as e:
-            st.error(f"Error processing folder {folder}: {str(e)}")
 
-    if all_dataframes:
-        st.write("### Processing Datasets")
-        
-        # Find common columns between all dataframes
-        common_columns = set.intersection(*[set(df['data'].columns) for df in all_dataframes])
-        st.write(f"Common columns found: {', '.join(common_columns)}")
-        
-        # Merge all dataframes
-        final_df = all_dataframes[0]['data']
-        
-        for i in range(1, len(all_dataframes)):
-            # Merge based on common columns, keeping all rows from both dataframes
-            final_df = pd.merge(
-                final_df,
-                all_dataframes[i]['data'],
-                on=list(common_columns),
-                how='outer',
-                suffixes=(f'_{all_dataframes[0]["source"]}', f'_{all_dataframes[i]["source"]}')
-            )
-        
-        # Sort by common columns if they exist
-        sort_columns = [col for col in ['año', 'pais_nombre'] if col in common_columns]
-        if sort_columns:
-            final_df = final_df.sort_values(sort_columns)
-        
-        st.write(f"### Final Merged Dataset")
-        st.write(f"Total rows: {len(final_df)}")
-        st.write(f"Total columns: {len(final_df.columns)}")
-        
-        # Display sources used
-        sources = [df['source'] for df in all_dataframes]
-        st.write(f"Sources merged: {', '.join(sources)}")
-        
-        # Show sample of the data
-        st.dataframe(final_df)
-        
-        # Download button for final dataset
-        csv_data = final_df.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            "Download Merged Dataset",
-            csv_data,
-            "merged_data.csv",
-            "text/csv",
-            key='download-csv'
-        )
+# Función que se llama al pulsar el botón "Añadir base de datos"
+def add_database():
+    """
+    Añade un nuevo conjunto de filtros (vacío) a la lista 'database_entries'.
+    """
+    st.session_state["database_entries"].append(
+        {
+            "id": len(st.session_state["database_entries"]),  # identificador interno
+            "database": None,
+            "flujos_filter": [],
+            "años_filter": [],
+            "paises_filter": [],
+        }
+    )
+
+
+# 4. Renderizar dinámicamente cada bloque de filtros
+used_databases = [
+    entry["database"]
+    for entry in st.session_state["database_entries"]
+    if entry["database"]
+]
+
+for entry in st.session_state["database_entries"]:
+    st.sidebar.subheader(f"Configuración para base de datos #{entry['id']+1}")
+
+    # Filtrar opciones de base de datos para excluir las ya seleccionadas
+    available_databases = [
+        db
+        for db in options["database"]
+        if db not in used_databases or db == entry["database"]
+    ]
+
+    # Seleccionar base de datos
+    entry["database"] = st.sidebar.selectbox(
+        "Selecciona la base de datos",
+        options=available_databases,
+        key=f"database_{entry['id']}",  # clave única para que Streamlit recuerde la selección
+    )
+
+    # Filtro de flujo
+    selected_flujos = st.sidebar.multiselect(
+        "Selecciona Flujo",
+        options=options["flujo"],
+        default=options["flujo"][0],
+        key=f"flujo_{entry['id']}",
+    )
+    entry["flujos_filter"] = selected_flujos
+
+    # Filtro de año
+    all_anos = ["Seleccionar todos"] + options["año"]
+    selected_anos = st.sidebar.multiselect(
+        "Selecciona Año",
+        options=all_anos,
+        default=all_anos[-1],
+        key=f"ano_{entry['id']}",
+    )
+    if "Seleccionar todos" in selected_anos:
+        entry["años_filter"] = options["año"]
     else:
-        st.warning("No data found matching the selected filters.")
+        entry["años_filter"] = selected_anos
+
+    # Filtro de país
+    all_paises = ["Seleccionar todos"] + options["pais"]
+    selected_paises = st.sidebar.multiselect(
+        "Selecciona País",
+        options=all_paises,
+        default=all_paises[1],
+        key=f"pais_{entry['id']}",
+    )
+    if "Seleccionar todos" in selected_paises:
+        entry["paises_filter"] = options["pais"]
+    else:
+        entry["paises_filter"] = selected_paises
+
+    st.sidebar.write("---")
+
+# Botón para añadir un nuevo bloque de filtros
+if len(st.session_state["database_entries"]) < len(options["database"]):
+    st.sidebar.button("Añadir base de datos", on_click=add_database)
+else:
+    st.sidebar.write("No hay más bases de datos disponibles para añadir.")
+
+# 5. Botón para aplicar filtros a todas las bases de datos añadidas
+if st.sidebar.button("Aplicar filtros a todas las BBDD"):
+    progress_bar = st.progress(0)
+
+    # Calcular todos los años seleccionados de las BBDD
+    all_selected_years = []
+    for entry in st.session_state["database_entries"]:
+        all_selected_years.extend(entry["años_filter"])
+    print(len(all_selected_years))
+    y = 0
+
+    # st.write(f"Años seleccionados: {sorted(all_selected_years)}")
+
+    with st.spinner("Procesando datos..."):
+        all_dataframes = []
+
+        # Recorrer cada configuración de base de datos
+        for idx, entry in enumerate(st.session_state["database_entries"]):
+            db_name = entry["database"]
+            flujos = entry["flujos_filter"]
+            years = entry["años_filter"]
+            paises = entry["paises_filter"]
+
+            # Cargar los datos para cada año
+            data_frames = []
+            for year in years:
+                df = fetch_csv_from_api(db_name, year)
+                data_frames.append(df)
+                # Actualizar barra de progreso
+                progress_bar.progress((y + 1) / len(all_selected_years))
+                y += 1
+
+            if data_frames:
+                combined_df = pd.concat(data_frames)
+            else:
+                combined_df = pd.DataFrame()
+
+            # Aplicar los filtros
+            filtered_df = combined_df[
+                (combined_df["flujo"].isin(flujos)) & (combined_df["pais"].isin(paises))
+            ]
+
+            # Guardar resultado de esta base de datos
+            all_dataframes.append(filtered_df)
+
+        ########################################################
+        # Aquí faltaría implementar el merge de los dataframes #
+        ########################################################
+
+        # Crear pestañas para cada base de datos filtrada
+        tabs = st.tabs(
+            [f"Base de datos #{idx + 1}" for idx in range(len(all_dataframes))]
+        )
+
+        for idx, (tab, df) in enumerate(zip(tabs, all_dataframes)):
+            with tab:
+                st.subheader(f"Resultado para base de datos #{idx + 1}")
+                st.write(f"Mostrando {len(df)} filas de datos")
+                st.dataframe(df, use_container_width=True)
+
+                # Opción de descarga
+                csv_data = df.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    label="Descargar CSV combinado",
+                    data=csv_data,
+                    file_name=f"filtered_data_{idx + 1}.csv",
+                    mime="text/csv",
+                )
