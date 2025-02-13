@@ -50,4 +50,25 @@ def fetch_csv_from_api(database, year):
     with open(local_file, "wb") as f:
         f.write(file_response.content)
 
-    return pd.read_csv(local_file)
+    if database == "BACI_HS92_V202501":
+        return read_baci_data(local_file)
+    elif database == "DataComex_output_with_metadata":
+        return read_datacomex_data(local_file)
+
+
+def read_baci_data(local_file):
+    """
+    Reads the BACI data from the API and returns it as a DataFrame.
+    """
+    data = pd.read_csv(local_file, index_col=0)
+    data.pais = data.pais.astype(str).str.zfill(3)
+    return data
+
+
+def read_datacomex_data(local_file):
+    """
+    Reads the DataComex data from the API and returns it as a DataFrame.
+    """
+    data = pd.read_csv(local_file)
+    data.pais = data.pais.astype(str).str.zfill(3)
+    return data

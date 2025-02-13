@@ -28,10 +28,15 @@ flujos_filter = st.sidebar.multiselect(
 años_filter = st.sidebar.multiselect(
     "Select Año:", options=options["año"], default=options["año"][-1]
 )
+# paises_filter = st.sidebar.multiselect(
+#     "Select País:",
+#     options=sorted(options["pais_nombre"]),
+#     default=options["pais_nombre"][0],
+# )
 paises_filter = st.sidebar.multiselect(
     "Select País:",
-    options=sorted(options["pais_nombre"]),
-    default=options["pais_nombre"][0],
+    options=sorted(options["pais"]),
+    default=options["pais"][0],
 )
 
 # Data Preview Section
@@ -49,10 +54,13 @@ if st.sidebar.button("Apply Filters"):
         data = pd.concat(data_frames)
     else:
         data = pd.DataFrame()
-
+    print(data)
     # Apply additional filters to the combined DataFrame.
+    # filtered_data = data[
+    #     (data["flujo"].isin(flujos_filter)) & (data["pais_nombre"].isin(paises_filter))
+    # ]
     filtered_data = data[
-        (data["flujo"].isin(flujos_filter)) & (data["pais_nombre"].isin(paises_filter))
+        (data["flujo"].isin(flujos_filter)) & (data["pais"].isin(paises_filter))
     ]
 
     st.write(f"Displaying {len(filtered_data)} rows of data")
