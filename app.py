@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 
-import streamlit_app.data_processing as data_processing
+import client.data_processing as data_processing
 
 # Read options from options.json (this file should include your filter options)
 with open("options.json") as f:
