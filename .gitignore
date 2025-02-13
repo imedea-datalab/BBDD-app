@@ -2,3 +2,5 @@
 .devcontainer/*
 *.csv
 *ipynb
+api/__pycache__/
+client/__pycache__/
