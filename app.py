@@ -14,11 +14,19 @@ st.title("Aplicación de Datos con Múltiples Bases")
 st.markdown(
     "Puedes añadir varias bases de datos y aplicar filtros distintos a cada una."
 )
-
 # 3. Manejo de session_state para almacenar la configuración de cada base de datos
 if "database_entries" not in st.session_state:
     # Cada elemento de esta lista representará un conjunto de filtros para una base de datos
     st.session_state["database_entries"] = []
+    st.session_state["database_entries"].append(
+        {
+            "id": len(st.session_state["database_entries"]),  # identificador interno
+            "database": None,
+            "flujos_filter": [],
+            "años_filter": [],
+            "paises_filter": [],
+        }
+    )
 
 
 # Función que se llama al pulsar el botón "Añadir base de datos"
@@ -105,54 +113,70 @@ else:
     st.sidebar.write("No hay más bases de datos disponibles para añadir.")
 
 # 5. Botón para aplicar filtros a todas las bases de datos añadidas
-if st.sidebar.button("Aplicar filtros a todas las bases"):
-    all_dataframes = []
+if st.sidebar.button("Aplicar filtros a todas las BBDD"):
+    progress_bar = st.progress(0)
 
-    # Recorrer cada configuración de base de datos
+    # Calcular todos los años seleccionados de las BBDD
+    all_selected_years = []
     for entry in st.session_state["database_entries"]:
-        db_name = entry["database"]
-        flujos = entry["flujos_filter"]
-        years = entry["años_filter"]
-        paises = entry["paises_filter"]
+        all_selected_years.extend(entry["años_filter"])
+    print(len(all_selected_years))
+    y = 0
 
-        # Cargar los datos para cada año
-        data_frames = []
-        for year in years:
-            df = fetch_csv_from_api(db_name, year)
-            data_frames.append(df)
+    # st.write(f"Años seleccionados: {sorted(all_selected_years)}")
 
-        if data_frames:
-            combined_df = pd.concat(data_frames)
-        else:
-            combined_df = pd.DataFrame()
+    with st.spinner("Procesando datos..."):
+        all_dataframes = []
 
-        # Aplicar los filtros
-        filtered_df = combined_df[
-            (combined_df["flujo"].isin(flujos)) & (combined_df["pais"].isin(paises))
-        ]
+        # Recorrer cada configuración de base de datos
+        for idx, entry in enumerate(st.session_state["database_entries"]):
+            db_name = entry["database"]
+            flujos = entry["flujos_filter"]
+            years = entry["años_filter"]
+            paises = entry["paises_filter"]
 
-        # Guardar resultado de esta base de datos
-        all_dataframes.append(filtered_df)
+            # Cargar los datos para cada año
+            data_frames = []
+            for year in years:
+                df = fetch_csv_from_api(db_name, year)
+                data_frames.append(df)
+                # Actualizar barra de progreso
+                progress_bar.progress((y + 1) / len(all_selected_years))
+                y += 1
 
-    ########################################################
-    # Aquí faltaría implementar el merge de los dataframes #
+            if data_frames:
+                combined_df = pd.concat(data_frames)
+            else:
+                combined_df = pd.DataFrame()
 
-    ########################################################
+            # Aplicar los filtros
+            filtered_df = combined_df[
+                (combined_df["flujo"].isin(flujos)) & (combined_df["pais"].isin(paises))
+            ]
 
-    # Crear pestañas para cada base de datos filtrada
-    tabs = st.tabs([f"Base de datos #{idx + 1}" for idx in range(len(all_dataframes))])
+            # Guardar resultado de esta base de datos
+            all_dataframes.append(filtered_df)
 
-    for idx, (tab, df) in enumerate(zip(tabs, all_dataframes)):
-        with tab:
-            st.subheader(f"Resultado para base de datos #{idx + 1}")
-            st.write(f"Mostrando {len(df)} filas de datos")
-            st.dataframe(df, use_container_width=True)
+        ########################################################
+        # Aquí faltaría implementar el merge de los dataframes #
+        ########################################################
 
-            # Opción de descarga
-            csv_data = df.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                label="Descargar CSV combinado",
-                data=csv_data,
-                file_name=f"filtered_data_{idx + 1}.csv",
-                mime="text/csv",
-            )
+        # Crear pestañas para cada base de datos filtrada
+        tabs = st.tabs(
+            [f"Base de datos #{idx + 1}" for idx in range(len(all_dataframes))]
+        )
+
+        for idx, (tab, df) in enumerate(zip(tabs, all_dataframes)):
+            with tab:
+                st.subheader(f"Resultado para base de datos #{idx + 1}")
+                st.write(f"Mostrando {len(df)} filas de datos")
+                st.dataframe(df, use_container_width=True)
+
+                # Opción de descarga
+                csv_data = df.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    label="Descargar CSV combinado",
+                    data=csv_data,
+                    file_name=f"filtered_data_{idx + 1}.csv",
+                    mime="text/csv",
+                )
